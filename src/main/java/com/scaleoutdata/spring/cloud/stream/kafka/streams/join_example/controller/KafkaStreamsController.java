@@ -38,22 +38,20 @@ public class KafkaStreamsController {
         return pageKStream
                 .map((key, value) -> new KeyValue<String, Page>(value.getPageId(), value))
 
-                .selectKey((key, value) -> value.getPageId(), Named.as("select-key"))
+                .selectKey((key, value) -> value.getPageId())
 
                 .join(
                         visitKStream
-                                .map((key, value) -> {
-                            return new KeyValue<String, Visit>(value.getPageId(), value);
-                        })
-                                .selectKey((key, value) -> value.getPageId(), Named.as("select-key-orders")),
+                                .map((key, value) -> new KeyValue<String, Visit>(value.getPageId(), value))
+                                .selectKey((key, value) -> value.getPageId()),
 
                         (page, visit) -> new PageVisit(page.getPageId(), page, visit),
                             JoinWindows.of(Duration.ofMinutes(WINDOW)),
                             StreamJoined.<String, Page, Visit>with(storeSupplier, otherSupplier)
                 )
 
-                .peek((key, value) -> log.info("Joined PageVisit, key: {}, page: {} visit: {} ",
-                        key, value.getPage(), value.getVisit())
+                .peek((key, value) -> log.info("Joined PageVisit, key: {} pageId: {} visitId: {} ",
+                        key, value.getPage().getPageId(), value.getVisit().getVisitId())
                 )
                 ;
     }
