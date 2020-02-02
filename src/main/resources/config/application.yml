@@ -9,12 +9,18 @@ spring:
 
     cloud:
       stream:
-        default:
-          producer:
-            useNativeEncoding: true
+        bindings:
+          input-page:
+            destination: ${application.pagesTopicName}
+            content-type: avro/bytes
 
-          consumer:
-            useNativeEncoding: true
+          input-visit:
+            destination: ${application.visitsTopicName}
+            content-type: avro/bytes
+
+          output-page-visit:
+            destination: page.visits
+            content-type: avro/bytes
 
         kafka:
           streams:
@@ -34,23 +40,11 @@ spring:
                 producer:
                   keySerde: com.scaleoutdata.spring.cloud.stream.kafka.streams.join_example.serdes.StringAvroSerde
 
-              input-page:
-                consumer:
-                  startOffset: latest
+        default:
+          producer:
+            useNativeEncoding: true
+            startOffset: latest
 
-              input-visit:
-                consumer:
-                  startOffset: latest
-
-        bindings:
-          input-page:
-            destination: ${application.pagesTopicName}
-            content-type: avro/bytes
-
-          input-visit:
-            destination: ${application.visitsTopicName}
-            content-type: avro/bytes
-
-          output-page-visit:
-            destination: page.visits
-            content-type: avro/bytes
+          consumer:
+            useNativeEncoding: true
+            startOffset: latest
