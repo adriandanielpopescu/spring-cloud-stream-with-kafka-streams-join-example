@@ -1,0 +1,13 @@
+---
+applications:
+- name: spring-cloud-stream-with-kafka-streams-join-example
+  memory: 3G
+  disk_quota: 1G
+  instances: 1
+  env:
+    SPRING_PROFILES_ACTIVE: test
+    JBP_CONFIG_JMX: '{enabled: true}'
+    JBP_CONFIG_OPEN_JDK_JRE: '{jre: { version: 11.+ }}'
+    TZ: Europe/Amsterdam
+    JAVA_OPTS: -XX:MaxDirectMemorySize=500M -XX:ReservedCodeCacheSize=128M
+  services:

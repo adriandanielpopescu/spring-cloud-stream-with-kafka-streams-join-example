@@ -1,0 +1,27 @@
+{
+     "type" : "record",
+     "name" : "Visit",
+     "namespace" : "com.scaleoutdata.kafka.types",
+     "doc" : "Schema for com.scaleoutdata.kafka.types.Visit",
+     "fields" : [ {
+       "name" : "visitId",
+       "type" : [ "null", "string"]
+       },
+       {
+         "name" : "pageId",
+         "type" : [ "null", "string"]
+       },
+       {
+         "name" : "username",
+         "type" : [ "null", "string"]
+        },
+       {
+         "name" : "visitDuration",
+         "type" : [ "null", "long"]
+        },
+       {
+         "name" : "time",
+         "type" : [ "null", "long"]
+        }
+    ]
+}

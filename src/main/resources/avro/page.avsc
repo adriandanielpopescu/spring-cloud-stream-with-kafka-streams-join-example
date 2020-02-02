@@ -1,0 +1,19 @@
+{
+     "type" : "record",
+     "name" : "Page",
+     "namespace" : "com.scaleoutdata.kafka.types",
+     "doc" : "Schema for com.scaleoutdata.kafka.types.Page",
+     "fields" : [ {
+       "name" : "pageId",
+       "type" : [ "null", "string"]
+       },
+       {
+         "name" : "address",
+         "type" : [ "null", "string"]
+        },
+       {
+         "name" : "owner",
+         "type" : [ "null", "string"]
+        }
+    ]
+}

@@ -1,0 +1,56 @@
+application:
+    pagesTopicName: pages
+    visitsTopicName: visits
+    kafkaBrokerAddress: 192.168.1.103:9092
+    kafkaSchemaRegistryURL: http://192.168.1.103:8081
+spring:
+    application:
+      name: kafka-streams-join-example
+
+    cloud:
+      stream:
+        default:
+          producer:
+            useNativeEncoding: true
+
+          consumer:
+            useNativeEncoding: true
+
+        kafka:
+          streams:
+            binder:
+              brokers: ${application.kafkaBrokerAddress}
+              autoCreateTopics: true
+
+              configuration:
+                bootstrap-servers: ${application.kafkaBrokerAddress}
+                commit.interval.ms: 1000
+                default.key.serde: com.scaleoutdata.spring.cloud.stream.kafka.streams.join_example.serdes.StringAvroSerde
+                default.value.serde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+                schema.registry.url: ${application.kafkaSchemaRegistryURL}
+
+            bindings:
+              output-page-visit:
+                producer:
+                  keySerde: com.scaleoutdata.spring.cloud.stream.kafka.streams.join_example.serdes.StringAvroSerde
+
+              input-page:
+                consumer:
+                  startOffset: latest
+
+              input-visit:
+                consumer:
+                  startOffset: latest
+
+        bindings:
+          input-page:
+            destination: ${application.pagesTopicName}
+            content-type: avro/bytes
+
+          input-visit:
+            destination: ${application.visitsTopicName}
+            content-type: avro/bytes
+
+          output-page-visit:
+            destination: page.visits
+            content-type: avro/bytes
