@@ -5,7 +5,6 @@ applications:
   disk_quota: 1G
   instances: 1
   env:
-    SPRING_PROFILES_ACTIVE: test
     JBP_CONFIG_JMX: '{enabled: true}'
     JBP_CONFIG_OPEN_JDK_JRE: '{jre: { version: 11.+ }}'
     TZ: Europe/Amsterdam
