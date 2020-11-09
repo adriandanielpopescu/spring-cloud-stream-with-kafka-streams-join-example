@@ -17,6 +17,11 @@
         <version>2.2.2.RELEASE</version>
     </parent>
 
+    <properties>
+        <avro.version>1.8.2</avro.version>
+        <schema-registry-mock.version>2.2.0</schema-registry-mock.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -91,14 +96,15 @@
         </dependency>
 
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-stream-test-support</artifactId>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.springframework.kafka</groupId>
-            <artifactId>spring-kafka-test</artifactId>
+            <groupId>com.bakdata.fluent-kafka-streams-tests</groupId>
+            <artifactId>schema-registry-mock</artifactId>
+            <version>${schema-registry-mock.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -122,11 +128,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-
-    <properties>
-        <avro.version>1.8.2</avro.version>
-    </properties>
 
     <build>
         <plugins>
