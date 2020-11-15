@@ -58,9 +58,23 @@ between Confluent and Kafka SerDes for primitive types. Thus, we defined
 [StringAvroSerde](src/main/java/com/scaleoutdata/spring/cloud/stream/kafka/streams/join_example/serdes/StringAvroSerde.java) class which uses
 KafkaAvroSerializer and KafkaAvroDeserializer.
 
+
+## Testing
+This project uses `TopologyTestDriver` to test the streaming pipeline. Since the streaming pipeline uses Avro objects which are going to be
+registered into Kafka's Schema Registry we need a mock server that will mock the functionality of the schema registry. For this purpose we 
+use `schema-registry-mock` artifact which mocks under the hood the Schema registry object as `SchemaRegistryMock`. For an example, please
+check [TestKafkaStreamsController.java](src/test/java/com/scaleoutdata/spring/cloud/stream/kafka/streams/join_example/controller/TestKafkaStreamsController.java).
+
+For running the tests simply run: `mvn test`
+
 ## Deployment
 This project can be compiled with Maven and then deployed to Cloud Foundry platform using cf tools. 
 
 `mvn package`\
 `cf push -f manifest/manifest.yml -p target/spring-cloud-stream-kafka-streams-0.0.1.jar`
 
+Or to run it locally:
+```
+mvn spring-boot:run
+
+```

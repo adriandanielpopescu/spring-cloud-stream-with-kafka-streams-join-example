@@ -26,7 +26,7 @@ public class KafkaStreamsController {
 
     @StreamListener
     @SendTo(KafkaStreamsBindings.OUTPUT_PAGE_VISIT)
-    private KStream<String, PageVisit> process(
+    public KStream<String, PageVisit> process(
             @Input(KafkaStreamsBindings.INPUT_PAGE) KStream<String, Page> pageKStream,
             @Input(KafkaStreamsBindings.INPUT_VISIT) KStream<String, Visit> visitKStream) {
 
