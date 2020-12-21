@@ -2,6 +2,7 @@ package com.scaleoutdata.spring.cloud.stream.kafka.streams.join_example.controll
 import com.scaleoutdata.kafka.types.Page;
 import com.scaleoutdata.kafka.types.PageVisit;
 import com.scaleoutdata.kafka.types.Visit;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.kstream.*;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
@@ -44,15 +45,28 @@ import com.bakdata.schemaregistrymock.SchemaRegistryMock;
  */
 @Slf4j
 public class TestKafkaStreamsController {
-
+    private SchemaRegistryMock schemaRegistry;
     private TopologyTestDriver testDriver;
-
-    private final SchemaRegistryMock schemaRegistry = new SchemaRegistryMock();
-    private KafkaStreamsController kafkaStreamsController;
 
     private TestInputTopic<String, Page> testInputPage;
     private TestInputTopic<String, Visit> testInputVisit;
     private TestOutputTopic<String, PageVisit> testOutputTopic;
+
+    public TestKafkaStreamsController() {
+        this.schemaRegistry = new SchemaRegistryMock();
+    }
+
+    private SpecificAvroSerde createSpecificAvroSerde() {
+        SchemaRegistryClient mockSchemaRegistryClient = new MockSchemaRegistryClient();
+
+        Map<String, String> config = new HashMap<>();
+        config.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, "true");
+        config.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry.getUrl());
+
+        SpecificAvroSerde specificAvroSerde = new SpecificAvroSerde(mockSchemaRegistryClient);
+        specificAvroSerde.configure(config, false);
+        return specificAvroSerde;
+    }
 
     private Properties getStreamsConfiguration(String url) {
         final Properties streamsConfiguration = new Properties();
@@ -60,7 +74,7 @@ public class TestKafkaStreamsController {
         streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         streamsConfiguration.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         streamsConfiguration.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, SpecificAvroSerde.class);
-        streamsConfiguration.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url);
+        streamsConfiguration.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url);
 
         return streamsConfiguration;
     }
@@ -68,38 +82,28 @@ public class TestKafkaStreamsController {
     @Before
     public void setup() throws Exception {
         this.schemaRegistry.start();
-        final StreamsBuilder builder = new StreamsBuilder();
-        SchemaRegistryClient mockSchemaRegistryClient = new MockSchemaRegistryClient();
 
-        Map<String, String> config = new HashMap<>();
-        config.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, "true");
-        config.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry.getUrl());
-
-        SpecificAvroSerde specificAvroSerdePage = new SpecificAvroSerde(mockSchemaRegistryClient);
-        specificAvroSerdePage.configure(config, false);
-
-        SpecificAvroSerde specificAvroSerdeVisit = new SpecificAvroSerde(mockSchemaRegistryClient);
-        specificAvroSerdeVisit.configure(config, false);
-
-        SpecificAvroSerde specificAvroSerdeOutput = new SpecificAvroSerde(mockSchemaRegistryClient);
-        specificAvroSerdeOutput.configure(config, false);
-
-        Map<String, String> configKey = new HashMap<>();
-        configKey.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry.getUrl());
-
-        // create the TopologyTestDriver
-        Properties streamsConfig = getStreamsConfiguration(schemaRegistry.getUrl());
-        KStream<String, Page> inputPage = builder.stream(INPUT_PAGE, Consumed.with(Serdes.String(), specificAvroSerdePage));
-        KStream<String, Visit> inputVisit = builder.stream(INPUT_VISIT, Consumed.with(Serdes.String(), specificAvroSerdeVisit));
-        kafkaStreamsController = new KafkaStreamsController();
-        KStream<String, PageVisit> output = kafkaStreamsController.process(inputPage, inputVisit);
-        output.to(OUTPUT_PAGE_VISIT, Produced.with(Serdes.String(), specificAvroSerdeOutput));
-        testDriver = new TopologyTestDriver(builder.build(), streamsConfig);
+        // create TopologyDriver
+        SpecificAvroSerde specificAvroSerde = createSpecificAvroSerde();
+        testDriver = createTopologyDriver(specificAvroSerde);
 
         // create the input/output topics
-        testInputPage = testDriver.createInputTopic(INPUT_PAGE, Serdes.String().serializer(), specificAvroSerdePage.serializer());
-        testInputVisit = testDriver.createInputTopic(INPUT_VISIT, Serdes.String().serializer(), specificAvroSerdeVisit.serializer());
-        testOutputTopic = testDriver.createOutputTopic(OUTPUT_PAGE_VISIT, Serdes.String().deserializer(), specificAvroSerdeOutput.deserializer());
+        testInputPage = testDriver.createInputTopic(INPUT_PAGE, Serdes.String().serializer(), specificAvroSerde.serializer());
+        testInputVisit = testDriver.createInputTopic(INPUT_VISIT, Serdes.String().serializer(), specificAvroSerde.serializer());
+        testOutputTopic = testDriver.createOutputTopic(OUTPUT_PAGE_VISIT, Serdes.String().deserializer(), specificAvroSerde.deserializer());
+    }
+
+    private TopologyTestDriver createTopologyDriver(SpecificAvroSerde specificAvroSerde) {
+        // create the TopologyTestDriver
+        Properties streamsConfig = getStreamsConfiguration(schemaRegistry.getUrl());
+        final StreamsBuilder builder = new StreamsBuilder();
+        KStream<String, Page> inputPage = builder.stream(INPUT_PAGE, Consumed.with(Serdes.String(), specificAvroSerde));
+        KStream<String, Visit> inputVisit = builder.stream(INPUT_VISIT, Consumed.with(Serdes.String(), specificAvroSerde));
+        KafkaStreamsController kafkaStreamsController = new KafkaStreamsController();
+        KStream<String, PageVisit> output = kafkaStreamsController.process(inputPage, inputVisit);
+        output.to(OUTPUT_PAGE_VISIT, Produced.with(Serdes.String(), specificAvroSerde));
+        testDriver = new TopologyTestDriver(builder.build(), streamsConfig);
+        return testDriver;
     }
 
     @After
