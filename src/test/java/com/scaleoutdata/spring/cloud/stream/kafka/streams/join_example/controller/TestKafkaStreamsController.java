@@ -7,7 +7,6 @@ import org.apache.kafka.streams.*;
 import org.apache.kafka.streams.kstream.*;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.*;
@@ -20,12 +19,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.time.temporal.TemporalUnit;
 import java.util.*;
 
 import static com.scaleoutdata.spring.cloud.stream.kafka.streams.join_example.config.KafkaStreamsBindings.*;
-import static junit.framework.TestCase.assertTrue;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
@@ -45,7 +41,7 @@ import com.bakdata.schemaregistrymock.SchemaRegistryMock;
  */
 @Slf4j
 public class TestKafkaStreamsController {
-    private SchemaRegistryMock schemaRegistry;
+    private SchemaRegistryMock schemaRegistryMock;
     private TopologyTestDriver testDriver;
 
     private TestInputTopic<String, Page> testInputPage;
@@ -53,7 +49,22 @@ public class TestKafkaStreamsController {
     private TestOutputTopic<String, PageVisit> testOutputTopic;
 
     public TestKafkaStreamsController() {
-        this.schemaRegistry = new SchemaRegistryMock();
+        this.schemaRegistryMock = new SchemaRegistryMock();
+    }
+
+    @Before
+    public void setup() throws Exception {
+        // start schemaRegistryMock
+        this.schemaRegistryMock.start();
+
+        // create TopologyTestDriver
+        SpecificAvroSerde specificAvroSerde = createSpecificAvroSerde();
+        testDriver = createTopologyDriver(specificAvroSerde);
+
+        // create the input/output topics
+        testInputPage = testDriver.createInputTopic(INPUT_PAGE, Serdes.String().serializer(), specificAvroSerde.serializer());
+        testInputVisit = testDriver.createInputTopic(INPUT_VISIT, Serdes.String().serializer(), specificAvroSerde.serializer());
+        testOutputTopic = testDriver.createOutputTopic(OUTPUT_PAGE_VISIT, Serdes.String().deserializer(), specificAvroSerde.deserializer());
     }
 
     private SpecificAvroSerde createSpecificAvroSerde() {
@@ -61,7 +72,7 @@ public class TestKafkaStreamsController {
 
         Map<String, String> config = new HashMap<>();
         config.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, "true");
-        config.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry.getUrl());
+        config.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryMock.getUrl());
 
         SpecificAvroSerde specificAvroSerde = new SpecificAvroSerde(mockSchemaRegistryClient);
         specificAvroSerde.configure(config, false);
@@ -79,23 +90,9 @@ public class TestKafkaStreamsController {
         return streamsConfiguration;
     }
 
-    @Before
-    public void setup() throws Exception {
-        this.schemaRegistry.start();
-
-        // create TopologyDriver
-        SpecificAvroSerde specificAvroSerde = createSpecificAvroSerde();
-        testDriver = createTopologyDriver(specificAvroSerde);
-
-        // create the input/output topics
-        testInputPage = testDriver.createInputTopic(INPUT_PAGE, Serdes.String().serializer(), specificAvroSerde.serializer());
-        testInputVisit = testDriver.createInputTopic(INPUT_VISIT, Serdes.String().serializer(), specificAvroSerde.serializer());
-        testOutputTopic = testDriver.createOutputTopic(OUTPUT_PAGE_VISIT, Serdes.String().deserializer(), specificAvroSerde.deserializer());
-    }
-
     private TopologyTestDriver createTopologyDriver(SpecificAvroSerde specificAvroSerde) {
         // create the TopologyTestDriver
-        Properties streamsConfig = getStreamsConfiguration(schemaRegistry.getUrl());
+        Properties streamsConfig = getStreamsConfiguration(schemaRegistryMock.getUrl());
         final StreamsBuilder builder = new StreamsBuilder();
         KStream<String, Page> inputPage = builder.stream(INPUT_PAGE, Consumed.with(Serdes.String(), specificAvroSerde));
         KStream<String, Visit> inputVisit = builder.stream(INPUT_VISIT, Consumed.with(Serdes.String(), specificAvroSerde));
@@ -109,7 +106,7 @@ public class TestKafkaStreamsController {
     @After
     public void tearDown() {
         testDriver.close();
-        this.schemaRegistry.stop();
+        this.schemaRegistryMock.stop();
     }
 
     @Test
