@@ -19,6 +19,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 import static com.scaleoutdata.spring.cloud.stream.kafka.streams.join_example.config.KafkaStreamsBindings.*;
@@ -62,45 +63,46 @@ public class TestKafkaStreamsController {
         testDriver = createTopologyDriver(specificAvroSerde);
 
         // create the input/output topics
-        testInputPage = testDriver.createInputTopic(INPUT_PAGE, Serdes.String().serializer(), specificAvroSerde.serializer());
-        testInputVisit = testDriver.createInputTopic(INPUT_VISIT, Serdes.String().serializer(), specificAvroSerde.serializer());
+        testInputPage = testDriver.createInputTopic(INPUT_PAGE, Serdes.String().serializer(), specificAvroSerde.serializer(), Instant.now(), Duration.ofSeconds(1));
+        testInputVisit = testDriver.createInputTopic(INPUT_VISIT, Serdes.String().serializer(), specificAvroSerde.serializer(), Instant.now(), Duration.ofSeconds(1));
         testOutputTopic = testDriver.createOutputTopic(OUTPUT_PAGE_VISIT, Serdes.String().deserializer(), specificAvroSerde.deserializer());
     }
 
     private SpecificAvroSerde createSpecificAvroSerde() {
-        SchemaRegistryClient mockSchemaRegistryClient = new MockSchemaRegistryClient();
-
         Map<String, String> config = new HashMap<>();
         config.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, "true");
         config.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryMock.getUrl());
 
-        SpecificAvroSerde specificAvroSerde = new SpecificAvroSerde(mockSchemaRegistryClient);
+        SpecificAvroSerde specificAvroSerde = new SpecificAvroSerde(schemaRegistryMock.getSchemaRegistryClient());
         specificAvroSerde.configure(config, false);
         return specificAvroSerde;
+    }
+
+    private TopologyTestDriver createTopologyDriver(SpecificAvroSerde specificAvroSerde) {
+        // create the TopologyTestDriver
+        final StreamsBuilder builder = new StreamsBuilder();
+        KStream<String, Page> inputPage = builder.stream(INPUT_PAGE, Consumed.with(Serdes.String(), specificAvroSerde));
+        KStream<String, Visit> inputVisit = builder.stream(INPUT_VISIT, Consumed.with(Serdes.String(), specificAvroSerde));
+        KafkaStreamsController kafkaStreamsController = new KafkaStreamsController();
+
+        // produce output to output topic
+        KStream<String, PageVisit> output = kafkaStreamsController.process(inputPage, inputVisit);
+        output.to(OUTPUT_PAGE_VISIT, Produced.with(Serdes.String(), specificAvroSerde));
+
+        Properties streamsConfig = getStreamsConfiguration(schemaRegistryMock.getUrl());
+        testDriver = new TopologyTestDriver(builder.build(), streamsConfig);
+        return testDriver;
     }
 
     private Properties getStreamsConfiguration(String url) {
         final Properties streamsConfiguration = new Properties();
         streamsConfiguration.put(StreamsConfig.APPLICATION_ID_CONFIG, "TopologyTestDriver");
-        streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "mock:9092");
         streamsConfiguration.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         streamsConfiguration.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, SpecificAvroSerde.class);
         streamsConfiguration.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, url);
 
         return streamsConfiguration;
-    }
-
-    private TopologyTestDriver createTopologyDriver(SpecificAvroSerde specificAvroSerde) {
-        // create the TopologyTestDriver
-        Properties streamsConfig = getStreamsConfiguration(schemaRegistryMock.getUrl());
-        final StreamsBuilder builder = new StreamsBuilder();
-        KStream<String, Page> inputPage = builder.stream(INPUT_PAGE, Consumed.with(Serdes.String(), specificAvroSerde));
-        KStream<String, Visit> inputVisit = builder.stream(INPUT_VISIT, Consumed.with(Serdes.String(), specificAvroSerde));
-        KafkaStreamsController kafkaStreamsController = new KafkaStreamsController();
-        KStream<String, PageVisit> output = kafkaStreamsController.process(inputPage, inputVisit);
-        output.to(OUTPUT_PAGE_VISIT, Produced.with(Serdes.String(), specificAvroSerde));
-        testDriver = new TopologyTestDriver(builder.build(), streamsConfig);
-        return testDriver;
     }
 
     @After
@@ -112,9 +114,7 @@ public class TestKafkaStreamsController {
     @Test
     public void testJoinMatch() {
         testInputPage.pipeInput("key", new Page("p1", "address", "owner"));
-        testInputPage.advanceTime(Duration.ofSeconds(1));
         testInputVisit.pipeInput("key", new Visit("v1", "p1", "user", 10l, 10l));
-        testInputVisit.advanceTime(Duration.ofSeconds(1));
         KeyValue<String, PageVisit> output = testOutputTopic.readKeyValue();
         assertThat(output).isNotNull();
         assertThat(output.value).isNotNull();
