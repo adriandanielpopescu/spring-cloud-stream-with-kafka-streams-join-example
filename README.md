@@ -63,7 +63,7 @@ KafkaAvroSerializer and KafkaAvroDeserializer.
 This project uses `TopologyTestDriver` to test the streaming pipeline. Since the streaming pipeline uses Avro objects which are going to be
 registered into Kafka's Schema Registry we need a mock server that will mock the functionality of the schema registry. For this purpose we 
 use `schema-registry-mock` artifact which mocks under the hood the Schema registry object as `SchemaRegistryMock`. For an example, please
-check [TestKafkaStreamsController.java](src/test/java/com/scaleoutdata/spring/cloud/stream/kafka/streams/join_example/controller/TestKafkaStreamsController.java).
+check [TestKafkaStreamsController.java](src/test/java/com/scaleoutdata/spring/cloud/stream/kafka/streams/join_example/controller/TestKafkaStreamsController.java). For a complete description of the testing API you can check [Unit Testing Kafka Streams with Avro](https://scaleoutdata.com/unit-testing-kafka-streams-with-avro-schemas/).
 
 For running the tests simply run: `mvn test`
 
