@@ -21,7 +21,7 @@ import java.time.Duration;
 
 @Controller
 @Slf4j
-public class KafkaStreamsController {
+public class JoinController {
     private final long WINDOW = 5;
 
     @StreamListener
