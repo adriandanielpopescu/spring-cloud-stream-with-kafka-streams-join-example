@@ -21,7 +21,7 @@
         <avro.version>1.10.0</avro.version>
         <schema-registry-mock.version>2.2.0</schema-registry-mock.version>
         <spring-cloud.version>Hoxton.SR8</spring-cloud.version>
-        <kafka-streams.version>2.4.0</kafka-streams.version>
+        <kafka-streams.version>5.3.0-ccs</kafka-streams.version>
         <kafka-streams-avro-serde.version>5.5.1</kafka-streams-avro-serde.version>
     </properties>
 
